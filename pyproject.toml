@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plover_websocket_server"
-version = "0.1.3"
+version = "0.1.4"
 description = "A server for exposing Plover engine events and functionality"
 authors = [{name = "Daniel de Souza", email = "daniel@cosmicdna.co.uk"}]
 license = {text = "GNU General Public License v3 or later (GPLv3+)"}
