@@ -16,7 +16,7 @@ Download the latest version of Plover for your operating system from the [releas
 
 1. Open Plover
 2. Navigate to the Plugin Manager tool
-3. Select the "plover-engine-server-2" plugin entry in the list
+3. Select the "plover-websocket-server" plugin entry in the list
 4. Click install
 5. Restart Plover
 
