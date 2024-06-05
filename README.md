@@ -1,13 +1,13 @@
 # Plover WebSocket Server
 
-[![Python Tests](https://github.com/CosmicDNA/plover-websocket-server/actions/workflows/pytest.yml/badge.svg)](https://github.com/CosmicDNA/nacl_middleware/actions/workflows/pytest.yml)
-[![PyPI](https://img.shields.io/pypi/v/plover-engine-server-2?style=flat)](https://pypi.python.org/pypi/plover-engine-server-2/)
+[![Python Tests](https://github.com/CosmicDNA/plover-websocket-server/actions/workflows/pytest.yml/badge.svg)](https://github.com/CosmicDNA/plover-websocket-server/actions/workflows/pytest.yml)
+[![PyPI](https://img.shields.io/pypi/v/plover-websocket-server?style=flat)](https://pypi.python.org/pypi/plover-websocket-server/)
 
 A WebSocket server for exposing [Plover](https://github.com/openstenoproject/plover) events
 and controlling Plover from an external program.
 
-This plugin is available on [GitHub]( https://github.com/user202729/plover_websocket_server)
-and [PyPI](https://pypi.org/project/plover-engine-server-2/) (under the name `plover-engine-server-2`).
+This plugin is available on [GitHub](https://github.com/CosmicDNA/plover-websocket-server)
+and [PyPI](https://pypi.org/project/plover-websocket-server/) (under the name `plover-websocket-server`).
 Report all bugs on GitHub.
 
 ## Installation
