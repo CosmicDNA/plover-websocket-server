@@ -1,0 +1,29 @@
+name: Python Tests
+
+on:
+  push:
+    branches:
+      - master
+      - development
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'  # Choose your desired Python version
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install .[test]
+
+      - name: Test with pytest
+        run: |
+          pytest -s  # Run pytest with output
