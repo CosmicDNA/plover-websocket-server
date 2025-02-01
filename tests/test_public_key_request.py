@@ -8,9 +8,36 @@ from plover_websocket_server.websocket.server import WebSocketServer
 from asyncio import get_event_loop
 from nacl_middleware import Nacl
 
-SERVER_CONFIG_FILE = "plover_websocket_server_config.json"
+from json import dump
+from os import makedirs
 
+SERVER_CONFIG_FILE = "plover_websocket_server_config.json"
 config_path: str = os.path.join(CONFIG_DIR, SERVER_CONFIG_FILE)
+
+def is_ci_environment():
+    ci_vars = ['CI', 'TRAVIS', 'GITHUB_ACTIONS', 'CIRCLECI', 'JENKINS_HOME']
+    return any(var in os.environ for var in ci_vars)
+
+if is_ci_environment():
+    # Make sure there is a config folder
+    makedirs(CONFIG_DIR, exist_ok=True)
+
+    # random data
+    data = {
+    "private_key": "f4a8ac4dcee327231712ded32f6171962b8a430efa20a1c8c2943c6fdf05074e",
+    "public_key": "a76e938fb83d0d95b8b1f249f9aa1ab47c5159f31a052e1d366d18488573ee30",
+    "host": "localhost",
+    "port": 8086,
+    "remotes": [
+        {
+        "pattern": "^https?\\:\\/\\/localhost?(:[0-9]*)?"
+        }
+    ]
+    }
+
+    with open(config_path, "w", encoding="utf-8") as config_file:
+        dump(data, config_file, indent=2)
+
 
 config = ServerConfig(
     config_path
