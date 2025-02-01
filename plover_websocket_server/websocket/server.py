@@ -83,7 +83,7 @@ class WebSocketServer(EngineServer):
         """
         log.info("Request to get the server public key received.")
         log.info("Decoding public key...")
-        decoded_public_key = Nacl(self._private_key).decodedPublicKey()
+        decoded_public_key = Nacl(self._private_key).decoded_public_key()
         log.info(f"Public key {decoded_public_key} was decoded!")
         return json_response(decoded_public_key)
 
