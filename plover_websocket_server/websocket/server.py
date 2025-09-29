@@ -120,6 +120,11 @@ class WebSocketServer(EngineServer):
         try:
             async for message in socket:
                 if message.type == WSMsgType.TEXT:
+                    # Handle unencrypted heartbeat first
+                    if message.data == "ping":
+                        await socket.send_str("pong")
+                        continue
+
                     try:
                         log.debug("Decrypting message...")
                         decrypted: dict = mail_box.unbox(message.data)

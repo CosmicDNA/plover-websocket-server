@@ -181,6 +181,13 @@ class Client:
         """
         await self.socket.send_str(self.encrypt(message))
 
+    async def ping(self) -> None:
+        """
+        Sends a raw 'ping' message to the server for heartbeat testing.
+
+        """
+        await self.socket.send_str("ping")
+
     async def connect_to_websocket(self, message) -> None:
         """
         Connects to the server using the WebSocket protocol.
@@ -195,11 +202,20 @@ class Client:
             url,
             params=self._get_encryption_params(message),
             headers=self.headers,
-            ssl=self.ssl_context,
+            ssl= False if self.ssl_context is None else True,
         )
 
     async def receive_json(self):
         return await self.socket.receive_json()
+
+    async def receive_raw(self):
+        """
+        Receives a raw message from the websocket.
+
+        Returns:
+            any: The raw data from the message.
+        """
+        return (await self.socket.receive()).data
 
     async def disconnect(self) -> None:
         """

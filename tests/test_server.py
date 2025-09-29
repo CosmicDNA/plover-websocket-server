@@ -25,6 +25,21 @@ async def websocket(client: Client):
     assert reply == message
 
 
+async def ping_pong(client: Client):
+    """
+    Callback function for testing websocket heartbeat (ping-pong).
+
+    Args:
+        client (Client): The client object representing the websocket connection.
+
+    Returns:
+        None
+    """
+    await client.connect_to_websocket({"message": "ping-pong test"})
+    await client.ping()
+    reply = await client.receive_raw()
+    assert reply == "pong"
+
 async def http(client: Client):
     """
     This function is the callback for HTTP requests.
@@ -38,7 +53,7 @@ async def http(client: Client):
     pass
 
 
-@mark.parametrize("callback", [http, websocket])
+@mark.parametrize("callback", [http, websocket, ping_pong])
 def test_server(callback: Awaitable) -> None:
     """
     Test the server functionality.

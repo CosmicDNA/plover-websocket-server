@@ -49,7 +49,8 @@ include-package-data = false
 [project.optional-dependencies]
 test = [
     "pytest",
-    "PyQt5"
+    "PyQt5",
+    "PySide6"
 ]
 
 dev = [
