@@ -25,7 +25,8 @@ dependencies = [
     "aiohttp",
     "aiohttp_middlewares",
     "jsonpickle",
-    "nacl_middleware"
+    "nacl_middleware",
+    "PyQt5"
 ]
 
 [project.readme]
@@ -46,10 +47,10 @@ packages = [
 ]
 include-package-data = false
 
+
 [project.optional-dependencies]
 test = [
     "pytest",
-    "PyQt5",
     "PySide6"
 ]
 

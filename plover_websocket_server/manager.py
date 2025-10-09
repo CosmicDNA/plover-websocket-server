@@ -88,6 +88,7 @@ class EngineServerManager:
             self._server.data.stop_listening()
             self.stop_listening()
 
+        self._server._approved_remotes.clear()
         self._server.queue_stop()
 
     def stop(self) -> None:

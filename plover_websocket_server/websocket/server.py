@@ -1,9 +1,10 @@
 """WebSocket server definition."""
 
-from asyncio import CancelledError, Event, create_task, new_event_loop, set_event_loop
+from asyncio import CancelledError, Event, create_task, get_running_loop, new_event_loop, set_event_loop
 from json import decoder
 from operator import itemgetter
-from os.path import join
+from os.path import dirname, join
+from subprocess import Popen
 from ssl import Purpose, SSLContext, create_default_context
 from typing import TypedDict
 
@@ -28,7 +29,6 @@ from plover_websocket_server.errors import ERROR_NO_SERVER, ERROR_SERVER_RUNNING
 from plover_websocket_server.server import EngineServer, ServerStatus
 from plover_websocket_server.websocket.app_keys import app_keys
 from plover_websocket_server.websocket.views import index
-
 
 class SSLConfig(TypedDict):
     cert_path: str
@@ -74,6 +74,7 @@ class WebSocketServer(EngineServer):
             self._ssl_context.load_cert_chain(cert_path, key_path)
         else:
             self._ssl_context = None
+        self._approved_remotes = set()
 
     async def get_public_key(self, request: Request) -> Response:
         """Route to get the public key of the web server.
@@ -110,6 +111,15 @@ class WebSocketServer(EngineServer):
         """
         log.info("WebSocket connection starting")
         socket = WebSocketResponse()
+        remote_addr = request.remote
+        if remote_addr not in self._approved_remotes:
+            log.info(f"Requesting approval for remote: {remote_addr}")
+            approved = await self._ask_for_approval(remote_addr)
+            if not approved:
+                log.warning(f"Connection from {remote_addr} not approved.")
+                await socket.close(code=WSCloseCode.POLICY_VIOLATION, message=b"Connection not approved.")
+                return socket
+            self._approved_remotes.add(remote_addr)
         await socket.prepare(request)
         sockets: list[WebSocketResponse] = request.app[app_keys["websockets"]]
         mail_box: MailBox = itemgetter("mail_box")(request)
@@ -152,6 +162,32 @@ class WebSocketServer(EngineServer):
         sockets.remove(socket)
         log.info("WebSocket connection closed")
         return socket
+
+    async def _ask_for_approval(self, remote_addr: str) -> bool:
+        """Asks the user for approval to connect.
+
+        Launches a subprocess to display a message box.
+
+        Args:
+            remote_addr: The address of the remote client.
+
+        Returns:
+            True if the connection is approved, False otherwise.
+        """
+        loop = get_running_loop()
+        # We can't use sys.executable because Plover may be frozen.
+        # We call an external script to avoid module import and threading issues.
+        from sys import executable
+
+        process = Popen(
+            [
+                executable,
+                join(dirname(__file__), "approval_dialog.py"),
+                remote_addr,
+            ]
+        )
+        # process.wait() returns the exit code. 0 means 'Yes' was clicked.
+        return await loop.run_in_executor(None, process.wait) == 0
 
     def _start(self) -> None:
         """Starts the server.
