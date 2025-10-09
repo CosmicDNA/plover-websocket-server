@@ -122,23 +122,26 @@ class WebSocketServer(EngineServer):
         forwarded_for = request.headers.get("X-Forwarded-For")
         remote_addr = forwarded_for.split(",")[0].strip() if forwarded_for else request.remote
 
+        loop = get_running_loop()
+        display_addr = remote_addr
+        try:
+            # Perform a reverse DNS lookup to get the hostname. This is a
+            # blocking call, so we run it in an executor.
+            hostname, _, _ = await loop.run_in_executor(
+                None, gethostbyaddr, remote_addr
+            )
+            display_addr = f"{hostname} ({remote_addr})"
+        except (herror, OSError):
+            # Hostname could not be resolved.
+            pass
+
         if remote_addr not in self._approved_remotes:
-            loop = get_running_loop()
-            display_addr = remote_addr
-            try:
-                # Perform a reverse DNS lookup to get the hostname. This is a
-                # blocking call, so we run it in an executor.
-                hostname, _, _ = await loop.run_in_executor(
-                    None, gethostbyaddr, remote_addr
-                )
-                display_addr = f"{hostname} ({remote_addr})"
-            except (herror, OSError):
-                # Hostname could not be resolved.
-                pass
             log.info(f"Requesting approval for remote: {display_addr}")
             approved: bool = await self._ask_for_approval(display_addr)
             return approved, display_addr, remote_addr
 
+        # If already approved, return success.
+        return True, display_addr, remote_addr
 
     async def websocket_handler(self, request: Request) -> StreamResponse:
         """The main WebSocket handler.
