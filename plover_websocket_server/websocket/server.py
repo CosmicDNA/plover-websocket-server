@@ -2,7 +2,6 @@
 
 from asyncio import CancelledError, Event, create_task, get_running_loop, new_event_loop, set_event_loop
 from socket import herror, gethostbyaddr
-from json import decoder
 from operator import itemgetter
 from os.path import dirname, join
 from subprocess import Popen
