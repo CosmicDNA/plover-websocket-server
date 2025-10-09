@@ -1,6 +1,7 @@
 """WebSocket server definition."""
 
 from asyncio import CancelledError, Event, create_task, get_running_loop, new_event_loop, set_event_loop
+from socket import herror, gethostbyaddr
 from json import decoder
 from operator import itemgetter
 from os.path import dirname, join
@@ -14,6 +15,7 @@ from aiohttp.web import (
     AppRunner,
     Request,
     Response,
+    StreamResponse,
     TCPSite,
     WebSocketResponse,
     json_response,
@@ -103,23 +105,56 @@ class WebSocketServer(EngineServer):
 
         return json_response(mail_box.box(protocol))
 
-    async def websocket_handler(self, request: Request) -> WebSocketResponse:
+    async def _authorize_request_ok(self, request: Request) -> bool:
+        """Authorize the incoming request.
+
+        Args:
+            request: The request from the client.
+
+        Returns:
+            True if the request is authorized, False otherwise.
+        """
+
+        # Prioritize X-Forwarded-For header to get the original client IP,
+        # especially when behind a reverse proxy like ngrok.
+        # The header can be a comma-separated list; the first IP is the original client.
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        remote_addr = forwarded_for.split(",")[0].strip() if forwarded_for else request.remote
+
+        if remote_addr not in self._approved_remotes:
+            loop = get_running_loop()
+            display_addr = remote_addr
+            try:
+                # Perform a reverse DNS lookup to get the hostname. This is a
+                # blocking call, so we run it in an executor.
+                hostname, _, _ = await loop.run_in_executor(
+                    None, gethostbyaddr, remote_addr
+                )
+                display_addr = f"{hostname} ({remote_addr})"
+            except (herror, OSError):
+                # Hostname could not be resolved.
+                pass
+            log.info(f"Requesting approval for remote: {display_addr}")
+            approved: bool = await self._ask_for_approval(display_addr)
+            return approved, display_addr, remote_addr
+
+
+    async def websocket_handler(self, request: Request) -> StreamResponse:
         """The main WebSocket handler.
 
         Args:
             request: The request from the client.
         """
         log.info("WebSocket connection starting")
+
+        approved, display_addr, remote_addr = await self._authorize_request_ok(request)
+        if not approved:
+            log.warning(f"Connection from {display_addr} not approved.")
+            # Return a 403 Forbidden response to properly reject the connection.
+            return Response(status=403, text="Connection not approved")
+        self._approved_remotes.add(remote_addr)
+
         socket = WebSocketResponse()
-        remote_addr = request.remote
-        if remote_addr not in self._approved_remotes:
-            log.info(f"Requesting approval for remote: {remote_addr}")
-            approved = await self._ask_for_approval(remote_addr)
-            if not approved:
-                log.warning(f"Connection from {remote_addr} not approved.")
-                await socket.close(code=WSCloseCode.POLICY_VIOLATION, message=b"Connection not approved.")
-                return socket
-            self._approved_remotes.add(remote_addr)
         await socket.prepare(request)
         sockets: list[WebSocketResponse] = request.app[app_keys["websockets"]]
         mail_box: MailBox = itemgetter("mail_box")(request)
