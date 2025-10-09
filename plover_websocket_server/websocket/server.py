@@ -54,6 +54,7 @@ class WebSocketServer(EngineServer):
         ssl: SSLConfig,
         remotes: list[object],
         private_key: PrivateKey,
+        test_mode: bool = False,
     ) -> None:
         """Initialize the server.
 
@@ -66,6 +67,7 @@ class WebSocketServer(EngineServer):
         self._app = None
         self._private_key = private_key
         self._remotes = remotes
+        self._test_mode = test_mode
         if ssl:
             cert_path: str = join(CONFIG_DIR, ssl["cert_path"])
             key_path: str = join(CONFIG_DIR, ssl["key_path"])
@@ -146,12 +148,13 @@ class WebSocketServer(EngineServer):
         """
         log.info("WebSocket connection starting")
 
-        approved, display_addr, remote_addr = await self._authorize_request_ok(request)
-        if not approved:
-            log.warning(f"Connection from {display_addr} not approved.")
-            # Return a 403 Forbidden response to properly reject the connection.
-            return Response(status=403, text="Connection not approved")
-        self._approved_remotes.add(remote_addr)
+        if not self._test_mode:
+            approved, display_addr, remote_addr = await self._authorize_request_ok(request)
+            if not approved:
+                log.warning(f"Connection from {display_addr} not approved.")
+                # Return a 403 Forbidden response to properly reject the connection.
+                return Response(status=403, text="Connection not approved")
+            self._approved_remotes.add(remote_addr)
 
         socket = WebSocketResponse()
         await socket.prepare(request)

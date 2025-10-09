@@ -52,6 +52,7 @@ class EngineServerManager:
             self._config.ssl,
             self._config.remotes,
             self._config.private_key,
+            test_mode,
         )
         self._server.register_message_callback(self._on_message)
         self._test_mode = test_mode
