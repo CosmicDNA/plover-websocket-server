@@ -13,6 +13,7 @@ class ServerStatus(Enum):
     Attributes:
         Stopped: The server is stopped.
         Running: The server is running.
+
     """
 
     Stopped = auto()
@@ -24,6 +25,7 @@ class EngineServer:
 
     Attributes:
         status: The current status of the server.
+
     """
 
     listened: Listens = Listens()
@@ -35,6 +37,7 @@ class EngineServer:
         Args:
             host: The host address for the server to run on.
             port: The port for the server to run on.
+
         """
         self._thread = Thread(target=self._start, name="ServerThread")
         # it's not recommended to subclass Thread because some of its methods
@@ -63,8 +66,8 @@ class EngineServer:
 
         Args:
             data: The data in JSON format to broadcast.
-        """
 
+        """
         if not self._loop:
             return
 
@@ -75,7 +78,6 @@ class EngineServer:
 
         Assumes it is called from a thread different from the event loop.
         """
-
         if not self._loop:
             return
 
@@ -86,7 +88,6 @@ class EngineServer:
 
         Will create a blocking event loop.
         """
-
         raise NotImplementedError()
 
     async def _stop(self) -> None:
@@ -94,7 +95,6 @@ class EngineServer:
 
         Performs any clean up operations as needed.
         """
-
         raise NotImplementedError()
 
     async def _broadcast_message(self, data: dict) -> None:
@@ -102,8 +102,8 @@ class EngineServer:
 
         Args:
             data: The data in JSON format to broadcast.
-        """
 
+        """
         raise NotImplementedError()
 
     def register_message_callback(self, callback) -> None:

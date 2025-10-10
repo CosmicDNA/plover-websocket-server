@@ -2,7 +2,8 @@
 
 from copy import deepcopy
 from json import dump, load
-from re import compile
+from pathlib import Path
+from re import compile as re_compile
 
 from nacl.encoding import HexEncoder
 from nacl.public import PrivateKey
@@ -19,6 +20,7 @@ class ServerConfig:
     Attributes:
         host: The host address for the server to run on.
         port: The port for the server to run on.
+
     """
 
     host: str
@@ -32,10 +34,11 @@ class ServerConfig:
 
         Raises:
             IOError: Errored when loading the server configuration file.
-        """
 
+        """
+        file_path_obj = Path(file_path)
         try:
-            with open(file_path, encoding="utf-8") as config_file:
+            with file_path_obj.open(encoding="utf-8") as config_file:
                 data: dict = load(config_file)
         except FileNotFoundError:
             data = {}
@@ -78,16 +81,13 @@ class ServerConfig:
         # Save the updated data to the config file
         if loaded_data != data:
             log.info("Saving the updated data to the config file...")
-            with open(file_path, "w", encoding="utf-8") as config_file:
+            with file_path_obj.open("w", encoding="utf-8") as config_file:
                 dump(data, config_file, indent=2)
 
         # Assign values to class attributes
         self.host = data["host"]
         self.port = data["port"]
-        self.remotes = [
-            compile(remote["pattern"]) if "pattern" in remote else remote
-            for remote in data["remotes"]
-        ]
-        self.ssl = data.get("ssl", None)
+        self.remotes = [re_compile(remote["pattern"]) if "pattern" in remote else remote for remote in data["remotes"]]
+        self.ssl = data.get("ssl")
         self.private_key = private_key
         self.public_key = public_key

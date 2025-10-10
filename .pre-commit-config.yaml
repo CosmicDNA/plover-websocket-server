@@ -1,40 +1,36 @@
-# .pre-commit-config.yaml
-
 repos:
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.15.2
+    rev: v3.20.0
     hooks:
-    -   id: pyupgrade
+      - id: pyupgrade
+
   - repo: https://github.com/MarcoGorelli/absolufy-imports
-    rev: v0.3.0
+    rev: v0.3.1
     hooks:
-    - id: absolufy-imports
-  - repo: https://github.com/ambv/black
-    rev: 24.3.0
-    hooks:
-      - id: black
-        language_version: python3.11
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.0.0  # pick a git hash / tag to point to
-    hooks:
-      - id: flake8
+      - id: absolufy-imports
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^src/pattern_identifier\.egg-info/
       - id: end-of-file-fixer
+        exclude: ^src/pattern_identifier\.egg-info/
       - id: check-yaml
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        args: ["--profile", "black"]
-        name: isort (python)
+
   - repo: https://github.com/PyCQA/bandit
-    rev: '1.7.8'
+    rev: "1.8.3"
     hooks:
-    - id: bandit
-      args: ["--exclude", ".tox,.eggs,tests"]
+      - id: bandit
+        args: ["--exclude", ".tox,.eggs,tests"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: "v0.11.13" # Use the latest version
+    hooks:
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+      - id: ruff-format
+        # args: ["--check"] # Use --check in CI if you only want to verify
   - repo: local
     hooks:
       - id: pytest-check

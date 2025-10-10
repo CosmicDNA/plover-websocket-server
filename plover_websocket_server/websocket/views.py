@@ -8,6 +8,6 @@ async def index(request: Request) -> Response:
 
     Args:
         request: The request from the client.
-    """
 
+    """
     return Response(text="index")

@@ -26,7 +26,7 @@ dependencies = [
     "aiohttp_middlewares",
     "jsonpickle",
     "nacl_middleware",
-    "PyQt5"
+    "PySide6"
 ]
 
 [project.readme]
@@ -50,16 +50,61 @@ include-package-data = false
 
 [project.optional-dependencies]
 test = [
-    "pytest",
-    "PySide6"
+    "pytest"
 ]
 
+# dev = [
+#     "build",
+#     "pip-tools",
+#     "bumpversion",
+#     "twine",
+#     "ruff",
+#     "pre-commit"
+# ]
+
 dev = [
-    "build",
-    "black",
-    "flake8",
-    "isort",
-    "pip-tools",
-    "bumpversion",
-    "twine"
+    "plover_websocket_server[test]", # Includes all dependencies from the 'test' group,
+    "pre-commit", # For managing pre-commit hooks
 ]
+
+[tool.ruff]
+line-length = 149
+target-version = "py311" # Matches your black config and python support
+
+[tool.ruff.lint]
+# Enable Pyflakes (F), pycodestyle (E, W), isort (I)
+# Enable many common Pylint (PL), flake8-bugbear (B), flake8-comprehensions (C4), etc. rules
+select = [
+    "F", "E", "W", "I", "N", "D", # Core flake8, isort, pep8-naming, pydocstyle
+    "UP", # pyupgrade
+    "B",  # flake8-bugbear
+    "A",  # flake8-builtins
+    "C4", # flake8-comprehensions
+    "T20", # flake8-print (T201 for print, T203 for pprint)
+    "SIM", # flake8-simplify
+    "PTH", # flake8-use-pathlib
+    # "PL", # Pylint
+    # "TRY", # tryceratops
+]
+ignore = [
+    # Ignore common missing docstring errors for now
+    "D100",  # Missing docstring in public module
+    "D101",  # Missing docstring in public class
+    "D102",  # Missing docstring in public method
+    "D103",  # Missing docstring in public function
+    "D104",  # Missing docstring in public package
+    "D107",  # Missing docstring in `__init__`
+    "D203",  # 1 blank line required before class docstring
+    "D213",  # Multi-line docstring closing quotes should be on a separate line
+    "D401",  # First line of docstring should be in imperative mood
+    "N803",  # Function name should be lowercase
+    "N806",  # Variable in function should be lowercase
+]
+# mccabe (cyclomatic complexity)
+# mccabe.max-complexity = 10 # Default is 10, adjust as needed
+
+[tool.ruff.format]
+quote-style = "double" # Black default
+indent-style = "space"
+skip-magic-trailing-comma = false # Black default
+line-ending = "auto"

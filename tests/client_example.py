@@ -1,5 +1,5 @@
-from os import makedirs
-from os.path import join
+import logging
+from pathlib import Path
 from ssl import Purpose, SSLContext, create_default_context
 
 from aiohttp import ClientError, ClientSession, ClientWebSocketResponse, TCPConnector
@@ -9,14 +9,15 @@ from nacl.public import PrivateKey
 from nacl_middleware import MailBox, Nacl
 from plover.oslayer.config import CONFIG_DIR
 
+config_dir = Path(CONFIG_DIR)
 # Make sure there is a config folder
-makedirs(CONFIG_DIR, exist_ok=True)
+config_dir.mkdir(parents=True, exist_ok=True)
 CLIENT_CERTIFICATES_FOLDER = "tests/client_certificates"
+client_certificates_folder = Path(CLIENT_CERTIFICATES_FOLDER)
 
 
 class Client:
-    """
-    Represents a client that interacts with a server using HTTP and WebSocket protocols.
+    """Represents a client that interacts with a server using HTTP and WebSocket protocols.
 
     Args:
         host (str): The hostname or IP address of the server.
@@ -38,11 +39,8 @@ class Client:
     ssl_context: SSLContext
     socket: ClientWebSocketResponse
 
-    def __init__(
-        self, host: str, port: str, server_hex_public_key: str, ssl: dict
-    ) -> None:
-        """
-        Initializes a new instance of the Client class.
+    def __init__(self, host: str, port: str, server_hex_public_key: str, ssl: dict) -> None:
+        """Initializes a new instance of the Client class.
 
         Args:
             host (str): The hostname or IP address of the server.
@@ -54,7 +52,7 @@ class Client:
         pynacl = Nacl()
         self.private_key = pynacl.private_key
         self.hex_public_key = pynacl.decoded_public_key()
-        self.isTLS = True if ssl else False
+        self.isTLS = bool(ssl)
         self.host = host
         self.port = port
         if self.isTLS:
@@ -65,13 +63,11 @@ class Client:
             > openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout selfsigned.key -out selfsigned.crt
             > openssl x509 -req -in client.csr -CA selfsigned.crt -CAkey selfsigned.key -CAcreateserial -out client.crt -days 365
             """
-            cert_path: str = join(CONFIG_DIR, ssl["cert_path"])
-            self.ssl_context = create_default_context(
-                Purpose.SERVER_AUTH, cafile=cert_path
-            )
+            cert_path = config_dir / ssl["cert_path"]
+            self.ssl_context = create_default_context(Purpose.SERVER_AUTH, cafile=str(cert_path))
             self.ssl_context.load_cert_chain(
-                certfile=join(CLIENT_CERTIFICATES_FOLDER, "client.crt"),
-                keyfile=join(CLIENT_CERTIFICATES_FOLDER, "client.key"),
+                certfile=str(client_certificates_folder / "client.crt"),
+                keyfile=str(client_certificates_folder / "client.key"),
             )
         else:
             self.ssl_context = None
@@ -82,8 +78,7 @@ class Client:
         self.mail_box = MailBox(self.private_key, server_hex_public_key)
 
     def _get_encryption_params(self, message) -> MultiMapping[str]:
-        """
-        Returns the encryption parameters for the given message.
+        """Returns the encryption parameters for the given message.
 
         Args:
             message: The message to be encrypted.
@@ -98,8 +93,7 @@ class Client:
         }
 
     def protocol(self) -> str:
-        """
-        Returns the protocol string based on whether SSL/TLS is enabled.
+        """Returns the protocol string based on whether SSL/TLS is enabled.
 
         Returns:
             str: The protocol string ("s" for HTTPS, "ws" for WebSocket).
@@ -108,8 +102,7 @@ class Client:
         return "s" if self.isTLS else ""
 
     def encrypt(self, message) -> str:
-        """
-        Encrypts the given message using the client's mailbox.
+        """Encrypts the given message using the client's mailbox.
 
         Args:
             message: The message to be encrypted.
@@ -121,8 +114,7 @@ class Client:
         return self.mail_box.box(message)
 
     def decrypt(self, encrypted_message) -> any:
-        """
-        Decrypts the given encrypted message using the client's mailbox.
+        """Decrypts the given encrypted message using the client's mailbox.
 
         Args:
             encrypted_message: The encrypted message to be decrypted.
@@ -134,8 +126,7 @@ class Client:
         return self.mail_box.unbox(encrypted_message)
 
     async def fetch(self, url, params=None) -> any:
-        """
-        Sends an HTTP GET request to the specified URL with optional parameters.
+        """Sends an HTTP GET request to the specified URL with optional parameters.
 
         Args:
             url (str): The URL to send the request to.
@@ -150,12 +141,11 @@ class Client:
                 return await response.text()
         except ClientError as e:
             # Handle connection errors here
-            print(f"Error fetching data: {e}")
+            logging.error(f"Error fetching data: {e}")
             return None
 
     async def send_message(self, message) -> any:
-        """
-        Sends a message to the server using the HTTP protocol.
+        """Sends a message to the server using the HTTP protocol.
 
         Args:
             message: The message to be sent.
@@ -166,14 +156,11 @@ class Client:
         """
         url = f"http{self.protocol()}://{self.host}:{self.port}/protocol"
 
-        encrypted_res = await self.fetch(
-            url, params=self._get_encryption_params(message)
-        )
+        encrypted_res = await self.fetch(url, params=self._get_encryption_params(message))
         return self.decrypt(encrypted_res)
 
     async def send_websocket_message(self, message) -> None:
-        """
-        Sends a message to the server using the WebSocket protocol.
+        """Sends a message to the server using the WebSocket protocol.
 
         Args:
             message: The message to be sent.
@@ -182,15 +169,11 @@ class Client:
         await self.socket.send_str(self.encrypt(message))
 
     async def ping(self) -> None:
-        """
-        Sends a raw 'ping' message to the server for heartbeat testing.
-
-        """
+        """Sends a raw 'ping' message to the server for heartbeat testing."""
         await self.socket.send_str("ping")
 
     async def connect_to_websocket(self, message) -> None:
-        """
-        Connects to the server using the WebSocket protocol.
+        """Connects to the server using the WebSocket protocol.
 
         Args:
             message: The message to be sent during the connection process.
@@ -202,23 +185,21 @@ class Client:
             url,
             params=self._get_encryption_params(message),
             headers=self.headers,
-            ssl= False if self.ssl_context is None else True,
+            ssl=self.ssl_context is not None,
         )
 
     async def receive_json(self):
         return await self.socket.receive_json()
 
     async def receive_raw(self):
-        """
-        Receives a raw message from the websocket.
+        """Receives a raw message from the websocket.
 
         Returns:
             any: The raw data from the message.
+
         """
         return (await self.socket.receive()).data
 
     async def disconnect(self) -> None:
-        """
-        Disconnects the client from the server by closing the session.
-        """
+        """Disconnects the client from the server by closing the session."""
         await self.session.close()

@@ -1,4 +1,4 @@
-from asyncio import Task, create_task, gather
+from asyncio import create_task, gather
 from asyncio.futures import Future
 
 from plover import log
@@ -22,11 +22,13 @@ class Listens:
 
 class RawListens:
     def __get__(self, obj: Listens, objtype=None):
+        """Descriptor getter for accessing the status value."""
         value = obj._status
         # log.debug(f'Accessing status giving {value}')
         return value
 
     def __set__(self, obj: Listens, value):
+        """Descriptor setter for updating the status value and notifying listeners."""
         # log.debug(f'Updating status to {value}')
         obj._status = value
         if len(obj._listeners):

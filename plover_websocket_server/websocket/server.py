@@ -1,11 +1,11 @@
 """WebSocket server definition."""
 
 from asyncio import CancelledError, Event, create_task, get_running_loop, new_event_loop, set_event_loop
-from socket import herror, gethostbyaddr
 from operator import itemgetter
-from os.path import dirname, join
-from subprocess import Popen
+from pathlib import Path
+from socket import gethostbyaddr, herror
 from ssl import Purpose, SSLContext, create_default_context
+from subprocess import Popen  # nosec B404
 from typing import TypedDict
 
 from aiohttp import WSCloseCode, WSMsgType
@@ -31,6 +31,7 @@ from plover_websocket_server.server import EngineServer, ServerStatus
 from plover_websocket_server.websocket.app_keys import app_keys
 from plover_websocket_server.websocket.views import index
 
+
 class SSLConfig(TypedDict):
     cert_path: str
     key_path: str
@@ -46,6 +47,7 @@ class WebSocketServer(EngineServer):
     _runner: AppRunner
     _site: TCPSite
     _ssl_context: SSLContext
+    _approved_remotes: set[str] = set()
 
     def __init__(
         self,
@@ -61,29 +63,31 @@ class WebSocketServer(EngineServer):
         Args:
             host: The host address for the server to run on.
             port: The port for the server to run on.
-        """
+            ssl: SSL configuration dictionary with certificate and key paths.
+            remotes: List of allowed remote addresses.
+            private_key: The server's private key for encryption.
+            test_mode: If True, disables remote approval for testing.
 
+        """
         super().__init__(host, port)
         self._app = None
         self._private_key = private_key
         self._remotes = remotes
         self._test_mode = test_mode
         if ssl:
-            cert_path: str = join(CONFIG_DIR, ssl["cert_path"])
-            key_path: str = join(CONFIG_DIR, ssl["key_path"])
-            self._ssl_context = create_default_context(
-                Purpose.CLIENT_AUTH, cafile=cert_path
-            )
+            cert_path: str = str(Path(CONFIG_DIR) / ssl["cert_path"])
+            key_path: str = str(Path(CONFIG_DIR) / ssl["key_path"])
+            self._ssl_context = create_default_context(Purpose.CLIENT_AUTH, cafile=cert_path)
             self._ssl_context.load_cert_chain(cert_path, key_path)
         else:
             self._ssl_context = None
-        self._approved_remotes = set()
 
     async def get_public_key(self, request: Request) -> Response:
         """Route to get the public key of the web server.
 
         Args:
             request: The request from the client.
+
         """
         log.info("Request to get the server public key received.")
         log.info("Decoding public key...")
@@ -96,12 +100,9 @@ class WebSocketServer(EngineServer):
 
         Args:
             request: The request from the client.
-        """
-        if self._ssl_context:
-            protocol = "wss://"
-        else:
-            protocol = "ws://"
 
+        """
+        protocol = "wss://" if self._ssl_context else "ws://"
         mail_box: MailBox = itemgetter("mail_box")(request)
 
         return json_response(mail_box.box(protocol))
@@ -114,8 +115,8 @@ class WebSocketServer(EngineServer):
 
         Returns:
             True if the request is authorized, False otherwise.
-        """
 
+        """
         # Prioritize X-Forwarded-For header to get the original client IP,
         # especially when behind a reverse proxy like ngrok.
         # The header can be a comma-separated list; the first IP is the original client.
@@ -127,9 +128,7 @@ class WebSocketServer(EngineServer):
         try:
             # Perform a reverse DNS lookup to get the hostname. This is a
             # blocking call, so we run it in an executor.
-            hostname, _, _ = await loop.run_in_executor(
-                None, gethostbyaddr, remote_addr
-            )
+            hostname, _, _ = await loop.run_in_executor(None, gethostbyaddr, remote_addr)
             display_addr = f"{hostname} ({remote_addr})"
         except (herror, OSError):
             # Hostname could not be resolved.
@@ -148,6 +147,7 @@ class WebSocketServer(EngineServer):
 
         Args:
             request: The request from the client.
+
         """
         log.info("WebSocket connection starting")
 
@@ -190,10 +190,7 @@ class WebSocketServer(EngineServer):
                     self.data.status = {"decrypted": decrypted, "socket": socket}
 
                 elif message.type == WSMsgType.ERROR:
-                    log.info(
-                        "WebSocket connection closed with exception "
-                        f"{socket.exception()}"
-                    )
+                    log.info(f"WebSocket connection closed with exception {socket.exception()}")
         except CancelledError:  # https://github.com/aio-libs/aiohttp/issues/1768
             pass
         finally:
@@ -213,16 +210,17 @@ class WebSocketServer(EngineServer):
 
         Returns:
             True if the connection is approved, False otherwise.
+
         """
         loop = get_running_loop()
         # We can't use sys.executable because Plover may be frozen.
         # We call an external script to avoid module import and threading issues.
         from sys import executable
 
-        process = Popen(
+        process = Popen(  # nosec B603
             [
                 executable,
-                join(dirname(__file__), "approval_dialog.py"),
+                str(Path(__file__).parent / "approval_dialog.py"),
                 remote_addr,
             ]
         )
@@ -251,9 +249,7 @@ class WebSocketServer(EngineServer):
                         "ngrok-skip-browser-warning",
                     ),
                 ),
-                nacl_middleware(
-                    self._private_key, exclude_routes=("/getpublickey",), log=log
-                ),
+                nacl_middleware(self._private_key, exclude_routes=("/getpublickey",), log=log),
             ]
         )
 
@@ -278,9 +274,7 @@ class WebSocketServer(EngineServer):
         async def run_async() -> None:
             self._runner = runner = AppRunner(self._app)
             await runner.setup()
-            self._site = site = TCPSite(
-                runner, host=self._host, port=self._port, ssl_context=self._ssl_context
-            )
+            self._site = site = TCPSite(runner, host=self._host, port=self._port, ssl_context=self._ssl_context)
             await site.start()
             self.listened.status = ServerStatus.Running
             await self._stop_event.wait()
@@ -296,7 +290,6 @@ class WebSocketServer(EngineServer):
 
         Performs any clean up operations as needed.
         """
-
         if self.listened.status != ServerStatus.Running:
             raise AssertionError(ERROR_NO_SERVER)
 
@@ -307,8 +300,8 @@ class WebSocketServer(EngineServer):
 
         Args:
             app: The web application shutting down.
-        """
 
+        """
         sockets: list[WebSocketResponse] = app.get(app_keys["websockets"], [])
         for socket in sockets:
             await socket.close(code=WSCloseCode.GOING_AWAY, message="Server shutdown")
@@ -318,8 +311,8 @@ class WebSocketServer(EngineServer):
 
         Args:
             data: The data to broadcast. Internally it's sent with WebSocketResponse.send_str.
-        """
 
+        """
         if not self._app:
             return
 
@@ -335,10 +328,7 @@ class WebSocketServer(EngineServer):
                 log.debug(f"Data {encrypted_data} encrypted!")
                 await socket.send_str(encrypted_data)
             except Exception as e:
-                print(
-                    f"Failed to update websocket {socket} {id(socket)} {socket.closed}: {e}",
-                    flush=True,
-                )
+                log.error(f"Failed to update websocket {socket} {id(socket)} {socket.closed}: {e}")
 
         # Create background tasks for each socket
         for socket in sockets:
