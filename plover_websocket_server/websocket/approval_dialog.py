@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from plover.oslayer.config import ASSETS_DIR
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -24,6 +25,13 @@ if __name__ == "__main__":
     msg_box.setInformativeText("Do you want to allow this connection?")
     msg_box.setDetailedText(f"Connection details:\n{remote_addr}")
     msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+    # Set the window to stay on top to ensure it gets focus.
+    msg_box.setWindowFlags(msg_box.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+
+    # Bring the window to the front and give it focus.
+    msg_box.raise_()
+    msg_box.activateWindow()
 
     reply = msg_box.exec()
 
