@@ -7,19 +7,20 @@ name = "plover_websocket_server"
 version = "0.1.12"
 description = "A server for exposing Plover engine events and functionality"
 authors = [{name = "Daniel de Souza", email = "daniel@cosmicdna.co.uk"}]
-license = {text = "GNU General Public License v3 or later (GPLv3+)"}
+requires-python = ">=3.8"
+license = "GPL-3.0-or-later"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Plugins",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
-keywords = ["plover plover_plugin"]
+keywords = ["plover plover_plugin websocket steno stenography"]
 dependencies = [
     "plover>=4.0.0.dev8",
     "aiohttp",
@@ -53,23 +54,18 @@ test = [
     "pytest"
 ]
 
-# dev = [
-#     "build",
-#     "pip-tools",
-#     "bumpversion",
-#     "twine",
-#     "ruff",
-#     "pre-commit"
-# ]
-
 dev = [
     "plover_websocket_server[test]", # Includes all dependencies from the 'test' group,
     "pre-commit", # For managing pre-commit hooks
+    "build",
+    "bump-my-version",
+    "twine",
+    "ruff",
 ]
 
 [tool.ruff]
 line-length = 149
-target-version = "py311" # Matches your black config and python support
+target-version = "py311"
 
 [tool.ruff.lint]
 # Enable Pyflakes (F), pycodestyle (E, W), isort (I)
