@@ -147,6 +147,29 @@ class EngineServerManager:
                     except Exception:
                         traceback.print_exc()
 
+            if "lookup" in decrypted:
+                text_to_lookup = decrypted["lookup"]
+                log.info(f"Lookup request for: {text_to_lookup}")
+                if isinstance(text_to_lookup, str):
+                    try:
+                        # Find the steno strokes for the given text
+                        from nacl_middleware import MailBox
+
+                        # Use the public engine.reverse_lookup() method to find the steno for a phrase.
+                        log.info("Looking up...")
+                        steno = self._engine.reverse_lookup(text_to_lookup)
+                        log.info(f"Res: {steno}")
+                        # reverse_lookup returns a set. If it's empty, the lookup failed.
+                        if not steno:
+                            log.warning(f"Lookup for '{text_to_lookup}' was unsuccessful.")
+                        # Send the result back to the client that requested it
+                        socket: WebSocketResponse = itemgetter("socket")(data)
+                        mail_box: MailBox = itemgetter("mail_box")(socket)
+                        await socket.send_str(mail_box.box({"lookup": list(steno)}))
+                        log.info("Sent!")
+                    except Exception:
+                        traceback.print_exc()
+
             if "translation" in decrypted:
                 mapping = decrypted["translation"]
                 if isinstance(mapping, str):
@@ -215,7 +238,7 @@ class EngineServerManager:
             "rtfcre": stroke.rtfcre,
             "paper": paper,
         }
-        self._server.queue_message(data)
+        self._server.queue_message({"on_stroked": data})
 
     def _on_translated(self, old: list[_Action], new: list[_Action]):
         """Broadcasts when a new translation occurs.
