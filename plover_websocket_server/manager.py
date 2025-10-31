@@ -22,9 +22,16 @@ from plover_websocket_server.errors import (
     ERROR_NO_SERVER,
     ERROR_SERVER_RUNNING,
 )
+from plover_websocket_server.lookup import lookup
 from plover_websocket_server.websocket.server import ServerStatus, WebSocketServer
 
 SERVER_CONFIG_FILE = "plover_websocket_server_config.json"
+
+
+class PloverLookupError(Exception):
+    def __init__(self, msg, *args):
+        self.msg = msg
+        super().__init__(*args)
 
 
 class EngineServerManager:
@@ -155,20 +162,11 @@ class EngineServerManager:
                         # Find the steno strokes for the given text
                         from nacl_middleware import MailBox
 
-                        # Use the public engine.reverse_lookup() method to find the steno for a phrase.
-                        # log.info("Looking up...")
-                        steno_set = self._engine.reverse_lookup(text_to_lookup)
-                        # log.info(f"Res: {steno}")
-                        # # reverse_lookup returns a set. If it's empty, the lookup failed.
-                        # if not steno:
-                        #     log.warning(f"Lookup for '{text_to_lookup}' was unsuccessful.")
-                        # Send the result back to the client that requested it
-
-                        steno_list = sorted(steno_set, key=lambda s: (len(s), sum(len(part) for part in s)))
+                        steno_options_per_word = lookup(self._engine, text_to_lookup)
 
                         socket: WebSocketResponse = itemgetter("socket")(data)
                         mail_box: MailBox = itemgetter("mail_box")(socket)
-                        await socket.send_str(mail_box.box({"lookup": steno_list}))
+                        await socket.send_str(mail_box.box({"lookup": steno_options_per_word}))
                         # log.info("Sent!")
                     except Exception:
                         traceback.print_exc()
