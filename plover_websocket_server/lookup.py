@@ -26,6 +26,14 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
         # 1. Try the phrase as-is (respecting capitalization)
         steno_capitalized: set = engine.reverse_lookup(phrase)
 
+        # If the phrase is a single non-word character (like '!'),
+        # also try looking it up as a Plover command (e.g., '{!}').
+        if len(phrase) == 1 and not phrase.isalnum():
+            command_phrase = f"{{{phrase}}}"
+            steno_from_command = engine.reverse_lookup(command_phrase)
+            if steno_from_command:
+                steno_capitalized.update(steno_from_command)
+
         # 2. Try the lowercase version and prepend cap stroke if needed
         steno_lowercase_modified = set()
         if phrase.lower() != phrase:
