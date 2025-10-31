@@ -156,17 +156,20 @@ class EngineServerManager:
                         from nacl_middleware import MailBox
 
                         # Use the public engine.reverse_lookup() method to find the steno for a phrase.
-                        log.info("Looking up...")
-                        steno = self._engine.reverse_lookup(text_to_lookup)
-                        log.info(f"Res: {steno}")
-                        # reverse_lookup returns a set. If it's empty, the lookup failed.
-                        if not steno:
-                            log.warning(f"Lookup for '{text_to_lookup}' was unsuccessful.")
+                        # log.info("Looking up...")
+                        steno_set = self._engine.reverse_lookup(text_to_lookup)
+                        # log.info(f"Res: {steno}")
+                        # # reverse_lookup returns a set. If it's empty, the lookup failed.
+                        # if not steno:
+                        #     log.warning(f"Lookup for '{text_to_lookup}' was unsuccessful.")
                         # Send the result back to the client that requested it
+
+                        steno_list = sorted(steno_set, key=lambda s: (len(s), sum(len(part) for part in s)))
+
                         socket: WebSocketResponse = itemgetter("socket")(data)
                         mail_box: MailBox = itemgetter("mail_box")(socket)
-                        await socket.send_str(mail_box.box({"lookup": list(steno)}))
-                        log.info("Sent!")
+                        await socket.send_str(mail_box.box({"lookup": steno_list}))
+                        # log.info("Sent!")
                     except Exception:
                         traceback.print_exc()
 
