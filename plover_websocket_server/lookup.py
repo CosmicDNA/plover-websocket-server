@@ -1,6 +1,7 @@
 # Find the steno strokes for the given text
 import re
 
+from plover import log
 from plover.engine import StenoEngine
 
 
@@ -16,6 +17,7 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
     Starts from the beginning of the string and then solving for the remainder.
     """
     memo = {}
+    log.debug(f"Starting lookup for: '{text_to_lookup}'")
 
     def get_steno_for_phrase(phrase: str) -> list | None:
         """Finds steno for a phrase.
@@ -24,12 +26,15 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
         to lowercase and prepending the capitalization stroke.
         """
         # 1. Try the phrase as-is (respecting capitalization)
+        log.debug(f"  - get_steno_for_phrase('{phrase}')")
         steno_capitalized: set = engine.reverse_lookup(phrase)
 
         # If the phrase is a single non-word character (like '!'),
         # also try looking it up as a Plover command (e.g., '{!}').
         if len(phrase) == 1 and not phrase.isalnum():
+            # Handle characters that are special within Plover's command syntax
             command_phrase = f"{{{phrase}}}"
+            log.debug(f"    - Trying command lookup for '{command_phrase}'")
             steno_from_command = engine.reverse_lookup(command_phrase)
             if steno_from_command:
                 steno_capitalized.update(steno_from_command)
@@ -55,17 +60,19 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
             return [[]]  # Base case: one valid solution, which is empty.
         if words_tuple in memo:
             return memo[words_tuple]
+        log.debug(f"--> solve({words_tuple})")
 
         def get_steno_options(i):
             return get_steno_for_phrase(" ".join(words_tuple[:i]))
 
         def process_i(i, best_steno_for_prefix):
             # Recursively find all solutions for the rest of the phrase
+            prefix_phrase = " ".join(words_tuple[:i])
             suffix_tuple = words_tuple[i:]
             suffix_solutions = solve(suffix_tuple)
 
             # Combine the prefix's steno with each suffix solution
-            return [[best_steno_for_prefix] + suffix_solution for suffix_solution in suffix_solutions]
+            return [[{"text": prefix_phrase, "steno": best_steno_for_prefix}] + suffix_solution for suffix_solution in suffix_solutions]
 
         all_solutions = [
             solution
@@ -83,6 +90,8 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
 
     all_possible_sequences = solve(tuple(words))
 
+    log.debug(f"All possible sequences: {all_possible_sequences}")
+
     if not all_possible_sequences:
         return []
 
@@ -90,7 +99,12 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
     # 1. Total number of strokes in the sequence
     # 2. Total number of keys pressed in the sequence
     sorted_sequences = sorted(
-        all_possible_sequences, key=lambda seq: (sum(len(stroke) for stroke in seq), sum(sum(len(p) for p in stroke) for stroke in seq))
+        all_possible_sequences,
+        key=lambda seq: (
+            sum(len(item["steno"]) for item in seq),
+            sum(sum(len(p) for p in item["steno"]) for item in seq),
+        ),
     )
 
+    log.debug(f"Lookup finished. Returning {sorted_sequences}")
     return sorted_sequences
