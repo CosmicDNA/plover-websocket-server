@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plover_websocket_server"
-version = "0.1.14"
+version = "0.1.15"
 description = "A server for exposing Plover engine events and functionality"
 authors = [{name = "Daniel de Souza", email = "daniel@cosmicdna.co.uk"}]
 requires-python = ">=3.8"
@@ -41,7 +41,7 @@ Homepage = "https://github.com/CosmicDNA/plover-websocket-server.git"
 plover_websocket_server = "plover_websocket_server.manager:EngineServerManager"
 
 [tool.bumpversion]
-current_version = "0.1.14"
+current_version = "0.1.15"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"
