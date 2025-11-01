@@ -15,6 +15,12 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
     """Recursively looks up a phrase by finding the longest possible dictionary match.
 
     Starts from the beginning of the string and then solving for the remainder.
+
+    A lookup can fail (return an empty list) if any part of the tokenized input
+    string cannot be found in Plover's dictionaries. The lookup is performed
+    recursively, and if any segment of the phrase has no corresponding steno
+    strokes, the entire lookup for that path will fail, and if no alternative
+    paths are found, the overall result will be empty.
     """
     memo = {}
     log.debug(f"Starting lookup for: '{text_to_lookup}'")
@@ -27,6 +33,7 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
         """
         # 1. Try the phrase as-is (respecting capitalization)
         log.debug(f"  - get_steno_for_phrase('{phrase}')")
+
         steno_capitalized: set = engine.reverse_lookup(phrase)
 
         # If the phrase is a single non-word character (like '!'),
@@ -49,7 +56,28 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
 
         # Prioritize direct capitalized results
         combined = steno_capitalized.union(steno_lowercase_modified)
+        numeric_phrase = re.sub(r"[$,€£]", "", phrase.replace(",", ""))
+        if numeric_phrase.isdigit():
+            digit_steno_list = []
+            all_digits_found = True
+            for digit in numeric_phrase:
+                digit_steno = engine.reverse_lookup(digit)
+                if not digit_steno:
+                    all_digits_found = False
+                    break
+                digit_steno_list.append(min(digit_steno, key=len))  # Choose shortest steno for the digit
+            if all_digits_found:
+                combined_digit_steno = tuple(s for steno_tuple in digit_steno_list for s in steno_tuple)
+                combined.add(combined_digit_steno)
+
+        # If after all attempts, we have no results, return None.
         if not combined:
+            # Only issue a warning for single words that are not found, as this is the root cause of failure.
+            is_single_word = " " not in phrase
+            if is_single_word:
+                log.warning(f"Failed to find steno for word: '{phrase}'")
+            else:
+                log.debug(f"    - FAILED to find steno for phrase: '{phrase}'")
             return None
 
         # Sort results: 1. Direct cap match, 2. Stroke count, 3. Key count
@@ -65,6 +93,8 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
         def get_steno_options(i):
             return get_steno_for_phrase(" ".join(words_tuple[:i]))
 
+        max_lookup_length = min(len(words_tuple), engine._dictionaries.longest_key)
+
         def process_i(i, best_steno_for_prefix):
             # Recursively find all solutions for the rest of the phrase
             prefix_phrase = " ".join(words_tuple[:i])
@@ -76,23 +106,30 @@ def lookup(engine: StenoEngine, text_to_lookup: str) -> list:
 
         all_solutions = [
             solution
-            for i in range(len(words_tuple), 0, -1)
+            for i in range(max_lookup_length, 0, -1)
             if (steno_options := get_steno_options(i))
             for solution in process_i(i, steno_options[0])
         ]
 
+        if not all_solutions:
+            # This is the point of failure. It means for the current `words_tuple`,
+            # no prefix could be found in the dictionary that also had a valid suffix solution.
+            log.debug(f"  <-- solve({words_tuple}) -> FAILED: No steno found for any prefix.")
         memo[words_tuple] = all_solutions
         return all_solutions
 
     # Tokenize the input string, separating words from punctuation.
-    # This finds sequences of word characters (\w+) or single non-word/non-space characters.
-    words = re.findall(r"\w+|[^\w\s]", text_to_lookup)
+    # This finds sequences of word characters (including those with internal apostrophes)
+    # currency symbols attached to numbers, numbers with commas, or single non-word/non-space characters.
+    token_regex = r"[$€£]?\d+(?:,\d+)*|\w+(?:['’]\w+)*|[^\w\s]"  # nosec B105
+    words = re.findall(token_regex, text_to_lookup)
 
     all_possible_sequences = solve(tuple(words))
 
     log.debug(f"All possible sequences: {all_possible_sequences}")
 
     if not all_possible_sequences:
+        log.debug(f"Lookup failed for '{text_to_lookup}'. No valid steno sequence found.")
         return []
 
     # Sort the collected sequences by overall efficiency
